@@ -1,0 +1,64 @@
+---
+- name: Install Docker and build Docker image
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Install required packages for Docker
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+          - python3-pip
+        state: present
+        update_cache: yes
+
+    - name: Remove PEP 668 restriction file
+      file:
+        path: /usr/lib/python3.12/EXTERNALLY-MANAGED
+        state: absent
+        force: yes
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable
+        state: present
+
+    - name: Install Docker engine
+      apt:
+        name: docker-ce
+        state: present
+        update_cache: yes
+
+    - name: Ensure Docker Python module is installed
+      pip:
+        name: docker
+        extra_args: "--break-system-packages"
+        state: present
+
+    - name: Start Docker service
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Copy Dockerfile to remote host
+      copy:
+        src: "{{ playbook_dir }}/Dockerfile"
+        dest: /home/paul/Dockerfile
+        mode: '0644'
+
+    - name: Build Docker image
+      docker_image:
+        build:
+          path: /home/paul
+        name: webdb-server
+        tag: latest
+        state: present
